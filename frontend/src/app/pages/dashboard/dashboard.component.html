@@ -1,0 +1,317 @@
+<div class="dashboard-page">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div>
+      <h1 class="page-title">Dashboard & Métricas de Estudo</h1>
+      <p class="page-subtitle">Acompanhe seu rendimento semanal, progresso nas stacks e tarefas críticas.</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/tasks" class="btn btn-outline">Ver Todas as Tarefas</a>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="btn-dismiss" (click)="errorMessage.set(null)" aria-label="Fechar erro">✕</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Carregando métricas e estatísticas...</p>
+    </div>
+  } @else {
+    <!-- KPI Overview Cards -->
+    <section class="kpi-grid" aria-label="Indicadores chave">
+      <!-- Card 1: Horas na Semana vs Meta -->
+      <article class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-primary" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Horas nesta Semana</span>
+          <div class="kpi-value-row">
+            <strong class="kpi-value">{{ weeklyMetrics()?.total_hours || 0 }}h</strong>
+            <span class="kpi-target">/ {{ weeklyMetrics()?.target_hours || 10 }}h meta</span>
+          </div>
+          <div class="kpi-progress">
+            <app-progress-bar
+              [value]="weeklyMetrics()?.percentage || 0"
+              [showLabel]="true"
+              height="0.45rem"
+            ></app-progress-bar>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2: Total Estudado Acumulado -->
+      <article class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-success" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Total Dedicado</span>
+          <div class="kpi-value-row">
+            <strong class="kpi-value">{{ summaryMetrics()?.total_spent_hours || 0 }}h</strong>
+            <span class="kpi-target">de {{ summaryMetrics()?.total_estimated_hours || 0 }}h</span>
+          </div>
+          <span class="kpi-hint">{{ summaryMetrics()?.done_tasks || 0 }} de {{ summaryMetrics()?.total_tasks || 0 }} tarefas finalizadas</span>
+        </div>
+      </article>
+
+      <!-- Card 3: Status das Tarefas -->
+      <article class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-warning" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Progresso do Curso</span>
+          <div class="kpi-value-row">
+            <strong class="kpi-value">{{ summaryMetrics()?.progress_percentage || 0 }}%</strong>
+            <span class="kpi-target">concluído</span>
+          </div>
+          <div class="kpi-badges">
+            <span class="tag tag-progress">{{ summaryMetrics()?.in_progress_tasks || 0 }} em andamento</span>
+            <span class="tag tag-todo">{{ summaryMetrics()?.todo_tasks || 0 }} a fazer</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- Main Content Grid: Chart & Stacks -->
+    <div class="dashboard-grid">
+      <!-- Section 1: Weekly Chart SVG -->
+      <section class="card chart-card">
+        <header class="card-header">
+          <h2 class="card-title">Distribuição de Horas na Semana</h2>
+          <span class="card-subtitle">
+            Semana: {{ weeklyMetrics()?.week_start }} até {{ weeklyMetrics()?.week_end }}
+          </span>
+        </header>
+
+        <div class="chart-wrapper">
+          <svg class="svg-chart" viewBox="0 0 540 220" role="img" aria-label="Gráfico de horas por dia">
+            <!-- Grid Lines -->
+            <line x1="40" y1="30" x2="520" y2="30" class="chart-grid-line"></line>
+            <line x1="40" y1="100" x2="520" y2="100" class="chart-grid-line"></line>
+            <line x1="40" y1="170" x2="520" y2="170" class="chart-baseline"></line>
+
+            <!-- Bars -->
+            @for (bar of chartBars(); track bar.date) {
+              <g class="chart-bar-group">
+                <!-- Bar rect -->
+                <rect
+                  [attr.x]="bar.x"
+                  [attr.y]="bar.y"
+                  width="36"
+                  [attr.height]="bar.height"
+                  rx="4"
+                  class="chart-bar"
+                  [class.has-hours]="bar.hours > 0"
+                ></rect>
+
+                <!-- Value label above bar -->
+                @if (bar.hours > 0) {
+                  <text
+                    [attr.x]="bar.x + 18"
+                    [attr.y]="bar.y - 8"
+                    text-anchor="middle"
+                    class="chart-val-label"
+                  >
+                    {{ bar.hours }}h
+                  </text>
+                }
+
+                <!-- Day label below -->
+                <text
+                  [attr.x]="bar.x + 18"
+                  y="194"
+                  text-anchor="middle"
+                  class="chart-day-label"
+                >
+                  {{ bar.dayName }}
+                </text>
+              </g>
+            }
+          </svg>
+        </div>
+
+        <footer class="chart-footer">
+          <div class="legend-item">
+            <span class="legend-color"></span>
+            <span>Horas apontadas nas tarefas</span>
+          </div>
+          <span class="meta-note">Soma de segunda-feira a domingo</span>
+        </footer>
+      </section>
+
+      <!-- Section 2: Stacks Desenvolvidas (Ranking) -->
+      <section class="card stacks-card">
+        <header class="card-header">
+          <h2 class="card-title">Stacks Desenvolvidas</h2>
+          <span class="card-subtitle">Ranking de horas dedicadas por tecnologia</span>
+        </header>
+
+        <div class="stacks-ranking-list">
+          @for (stack of stackRanking(); track stack.id) {
+            <div class="stack-rank-row">
+              <div class="stack-rank-header">
+                <div class="stack-name-col">
+                  <span class="rank-dot" [style.backgroundColor]="stack.color"></span>
+                  <strong class="stack-title">{{ stack.name }}</strong>
+                </div>
+                <div class="stack-hours-col">
+                  <span class="stack-hours">{{ stack.total_hours }}h</span>
+                  <span class="stack-count">({{ stack.tasks_count }} tarefas)</span>
+                </div>
+              </div>
+
+              <!-- Proportional bar relative to max hours -->
+              <div class="stack-bar-track">
+                <div
+                  class="stack-bar-fill"
+                  [style.width.%]="stackRanking().length > 0 && stackRanking()[0].total_hours > 0 ? (stack.total_hours / stackRanking()[0].total_hours) * 100 : 0"
+                  [style.backgroundColor]="stack.color"
+                ></div>
+              </div>
+            </div>
+          }
+
+          @if (stackRanking().length === 0) {
+            <p class="empty-hint">Nenhuma stack cadastrada no momento.</p>
+          }
+        </div>
+      </section>
+    </div>
+
+    <!-- Secondary Row: Tasks at risk & Next tasks -->
+    <div class="dashboard-bottom-grid">
+      <!-- Tasks at Risk -->
+      <section class="card risk-card">
+        <header class="card-header card-header-risk">
+          <div class="risk-title-box">
+            <span class="risk-icon" aria-hidden="true">⚠️</span>
+            <h2 class="card-title">Tarefas em Risco ({{ tasksAtRisk().length }})</h2>
+          </div>
+          <span class="card-subtitle">Tarefas fixadas cuja estimativa ultrapassa a data limite</span>
+        </header>
+
+        <div class="risk-list">
+          @for (task of tasksAtRisk(); track task.id) {
+            <article class="risk-task-item">
+              <div class="risk-item-header">
+                <span class="phase-badge">{{ task.phase_name }}</span>
+                <span class="risk-deadline-badge">Fixada para {{ task.due_date }}</span>
+              </div>
+              <h3 class="risk-task-title">{{ task.title }}</h3>
+              <div class="risk-item-meta">
+                <span>Restam <strong>{{ task.remaining_hours }}h</strong> para concluir</span>
+                <button type="button" class="btn btn-sm btn-secondary" (click)="openSessionModal(task)">
+                  + Apontar Horas
+                </button>
+              </div>
+            </article>
+          }
+
+          @if (tasksAtRisk().length === 0) {
+            <div class="clean-risk-state">
+              <span class="clean-icon" aria-hidden="true">✓</span>
+              <p>Nenhuma tarefa em risco! Todas as datas fixadas estão dentro da capacidade semanal.</p>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Next Tasks in Sequence -->
+      <section class="card next-tasks-card">
+        <header class="card-header">
+          <h2 class="card-title">Próximas Tarefas</h2>
+          <span class="card-subtitle">Seguindo a ordem pedagógica e cronograma</span>
+        </header>
+
+        <div class="next-tasks-list">
+          @for (task of nextTasks(); track task.id) {
+            <article class="next-task-item">
+              <div class="next-task-top">
+                <app-status-badge [status]="task.status"></app-status-badge>
+                @if (task.due_date) {
+                  <span class="next-due-date">📅 {{ task.due_date }}</span>
+                }
+              </div>
+
+              <h3 class="next-task-title">{{ task.title }}</h3>
+
+              <div class="next-task-footer">
+                <span class="next-hours">{{ task.spent_hours }}h / {{ task.estimated_hours }}h</span>
+                <div class="next-actions">
+                  <button type="button" class="btn btn-sm btn-outline-success" (click)="quickComplete(task)">
+                    ✓ Concluir
+                  </button>
+                  <button type="button" class="btn btn-sm btn-secondary" (click)="openSessionModal(task)">
+                    + Horas
+                  </button>
+                </div>
+              </div>
+            </article>
+          }
+
+          @if (nextTasks().length === 0) {
+            <div class="all-done-state">
+              <p>Parabéns! Todas as tarefas cadastradas foram concluídas.</p>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+
+  <!-- Quick Study Session Modal -->
+  <app-modal
+    [isOpen]="isSessionModalOpen()"
+    [title]="'Registrar Horas de Estudo: ' + (activeTaskForSession()?.title || '')"
+    (close)="closeSessionModal()"
+  >
+    <form [formGroup]="sessionForm" (ngSubmit)="saveSession()" class="modal-form">
+      <div class="form-group">
+        <label for="dash-session-date">Data do Estudo *</label>
+        <input id="dash-session-date" type="date" formControlName="date" required />
+      </div>
+
+      <div class="form-group">
+        <label for="dash-session-hours">Horas Dedicadas *</label>
+        <input id="dash-session-hours" type="number" step="0.25" min="0.25" formControlName="hours" required />
+      </div>
+
+      <div class="form-group">
+        <label for="dash-session-note">Anotações do Aprendizado (opcional)</label>
+        <textarea
+          id="dash-session-note"
+          formControlName="note"
+          rows="3"
+          placeholder="O que você praticou nesta sessão..."
+        ></textarea>
+      </div>
+
+      <div class="modal-form-actions">
+        <button type="button" class="btn btn-outline" (click)="closeSessionModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="sessionForm.invalid">Salvar Sessão</button>
+      </div>
+    </form>
+  </app-modal>
+</div>

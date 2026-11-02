@@ -1,0 +1,449 @@
+<div class="tasks-page">
+  <!-- Top action header -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Tarefas & Trilhas de Estudo</h1>
+      <p class="page-subtitle">Gerencie suas tarefas, reordene etapas e aponte horas de estudo.</p>
+    </div>
+    <div class="header-buttons">
+      <button type="button" class="btn btn-primary" (click)="openCreateModal()">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Nova Tarefa</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="btn-dismiss" (click)="errorMessage.set(null)" aria-label="Fechar erro">✕</button>
+    </div>
+  }
+
+  <!-- Filters Toolbar -->
+  <section class="filters-toolbar" aria-label="Filtros de tarefas">
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="search"
+        placeholder="Buscar tarefa ou descrição..."
+        [value]="searchQuery()"
+        (input)="onSearchChange($event)"
+        aria-label="Buscar tarefas"
+      />
+    </div>
+
+    <div class="filter-group">
+      <label for="status-filter">Status:</label>
+      <select id="status-filter" [value]="selectedStatus()" (change)="onStatusChange($event)">
+        <option value="all">Todos os status</option>
+        <option value="todo">A Fazer</option>
+        <option value="in_progress">Em Andamento</option>
+        <option value="done">Concluídos</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="phase-filter">Fase:</label>
+      <select id="phase-filter" [value]="selectedPhase()" (change)="onPhaseChange($event)">
+        <option value="all">Todas as fases</option>
+        @for (phase of phases(); track phase.id) {
+          <option [value]="phase.id">{{ phase.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="stack-filter">Stack:</label>
+      <select id="stack-filter" [value]="selectedStack()" (change)="onStackChange($event)">
+        <option value="all">Todas as tecnologias</option>
+        @for (stack of stacks(); track stack.id) {
+          <option [value]="stack.id">{{ stack.name }}</option>
+        }
+      </select>
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Carregando tarefas do plano de estudos...</p>
+    </div>
+  } @else {
+    <!-- Phases and Tasks List -->
+    <div class="phases-container">
+      @for (group of groupedTasks(); track group.phase.id) {
+        <section class="phase-section">
+          <header class="phase-header">
+            <div class="phase-info">
+              <span class="phase-position-badge">Fase {{ group.phase.position }}</span>
+              <h2 class="phase-title">{{ group.phase.name }}</h2>
+              @if (group.phase.description) {
+                <p class="phase-description">{{ group.phase.description }}</p>
+              }
+            </div>
+            <div class="phase-meta">
+              <span class="phase-counter">{{ group.tasks.length }} tarefas</span>
+            </div>
+          </header>
+
+          <!-- Tasks Drop List -->
+          @if (group.tasks.length > 0) {
+            <div
+              class="tasks-list"
+              cdkDropList
+              [cdkDropListData]="group.tasks"
+              (cdkDropListDropped)="onDrop(group.phase.id, $event)"
+            >
+              @for (task of group.tasks; track task.id) {
+                <article class="task-card" cdkDrag [class.is-done]="task.status === 'done'">
+                  <div class="drag-handle" cdkDragHandle title="Arrastar para reordenar nesta fase">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="9" cy="6" r="1"></circle>
+                      <circle cx="15" cy="6" r="1"></circle>
+                      <circle cx="9" cy="12" r="1"></circle>
+                      <circle cx="15" cy="12" r="1"></circle>
+                      <circle cx="9" cy="18" r="1"></circle>
+                      <circle cx="15" cy="18" r="1"></circle>
+                    </svg>
+                  </div>
+
+                  <div class="task-content">
+                    <div class="task-top-row">
+                      <div class="task-status-row">
+                        <app-status-badge [status]="task.status"></app-status-badge>
+
+                        @if (task.at_risk) {
+                          <span class="badge-at-risk" title="Atraso projetado: a estimativa ultrapassa a data limite fixada!">
+                            ⚠️ Em Risco
+                          </span>
+                        }
+
+                        @if (task.pinned_due_date) {
+                          <span class="badge-pinned" title="Data limite fixada pelo usuário">
+                            📌 Fixada
+                          </span>
+                        }
+                      </div>
+
+                      <div class="task-deadline">
+                        @if (task.due_date) {
+                          <span class="deadline-label" [class.text-danger]="task.at_risk">
+                            📅 {{ task.due_date }}
+                          </span>
+                        } @else {
+                          <span class="deadline-empty">Sem prazo</span>
+                        }
+                      </div>
+                    </div>
+
+                    <h3 class="task-title">{{ task.title }}</h3>
+
+                    @if (task.description) {
+                      <p class="task-description">{{ task.description }}</p>
+                    }
+
+                    <!-- Stacks list -->
+                    @if (task.stacks.length > 0) {
+                      <div class="task-stacks">
+                        @for (stack of task.stacks; track stack.id) {
+                          <app-stack-chip [name]="stack.name" [color]="stack.color"></app-stack-chip>
+                        }
+                      </div>
+                    }
+
+                    <!-- Hours progress -->
+                    <div class="task-progress-section">
+                      <div class="progress-details">
+                        <span>Horas: <strong>{{ task.spent_hours }}h</strong> de {{ task.estimated_hours }}h estimadas</span>
+                        <span class="remaining-hours">Restam {{ task.remaining_hours }}h</span>
+                      </div>
+                      <app-progress-bar
+                        [value]="task.estimated_hours > 0 ? (task.spent_hours / task.estimated_hours) * 100 : 0"
+                        [showLabel]="false"
+                        height="0.375rem"
+                      ></app-progress-bar>
+                    </div>
+
+                    <!-- Bottom actions -->
+                    <footer class="task-actions">
+                      <div class="quick-status-actions">
+                        @if (task.status !== 'done') {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-success"
+                            (click)="toggleStatus(task, 'done')"
+                            title="Marcar como concluída"
+                          >
+                            ✓ Concluir
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline"
+                            (click)="toggleStatus(task, 'in_progress')"
+                            title="Reabrir tarefa"
+                          >
+                            ↺ Reabrir
+                          </button>
+                        }
+
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-secondary"
+                          (click)="openSessionModal(task)"
+                          title="Apontar horas de estudo"
+                        >
+                          + Horas
+                        </button>
+                      </div>
+
+                      <div class="secondary-actions">
+                        @if (task.alura_url) {
+                          <a [href]="task.alura_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link" title="Acessar conteúdo do curso">
+                            🔗 Acessar
+                          </a>
+                        }
+
+                        <button
+                          type="button"
+                          class="btn-icon-action"
+                          (click)="openEditModal(task)"
+                          aria-label="Editar tarefa"
+                          title="Editar tarefa"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+
+                        <button
+                          type="button"
+                          class="btn-icon-action btn-danger-action"
+                          (click)="confirmDelete(task)"
+                          aria-label="Excluir tarefa"
+                          title="Excluir tarefa"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </footer>
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="phase-empty-state">
+              <p>Nenhuma tarefa nesta fase correspondente aos filtros.</p>
+            </div>
+          }
+        </section>
+      }
+
+      @if (groupedTasks().length === 0) {
+        <div class="empty-results">
+          <h3>Nenhuma tarefa encontrada</h3>
+          <p>Tente alterar os filtros ou adicione uma nova tarefa ao seu plano.</p>
+          <button type="button" class="btn btn-primary" (click)="openCreateModal()">Criar Tarefa</button>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Task Create / Edit Modal -->
+  <app-modal
+    [isOpen]="isTaskModalOpen()"
+    [title]="editingTask() ? 'Editar Tarefa' : 'Nova Tarefa de Estudo'"
+    (close)="closeTaskModal()"
+  >
+    <form [formGroup]="taskForm" (ngSubmit)="saveTask()" class="modal-form">
+      <div class="form-group">
+        <label for="task-title">Título do Curso / Tarefa *</label>
+        <input
+          id="task-title"
+          type="text"
+          formControlName="title"
+          placeholder="Ex: Angular Avançado: Arquitetura de Estado"
+          required
+        />
+        @if (taskForm.controls.title.touched && taskForm.controls.title.invalid) {
+          <span class="field-error">O título é obrigatório (mínimo 2 caracteres).</span>
+        }
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="task-phase">Fase de Estudo *</label>
+          <select id="task-phase" formControlName="phase_id">
+            @for (phase of phases(); track phase.id) {
+              <option [value]="phase.id">{{ phase.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="task-status">Status Inicial</label>
+          <select id="task-status" formControlName="status">
+            <option value="todo">A Fazer</option>
+            <option value="in_progress">Em Andamento</option>
+            <option value="done">Concluído</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="task-description">Descrição & Objetivos</label>
+        <textarea
+          id="task-description"
+          formControlName="description"
+          rows="3"
+          placeholder="Tópicos principais abordados, exercícios ou projeto prático..."
+        ></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="task-hours">Horas Estimadas *</label>
+          <input
+            id="task-hours"
+            type="number"
+            step="0.5"
+            min="0"
+            formControlName="estimated_hours"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="task-due-date">Data Limite (Due Date)</label>
+          <input
+            id="task-due-date"
+            type="date"
+            formControlName="due_date"
+          />
+        </div>
+      </div>
+
+      <div class="form-checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" formControlName="pinned_due_date" />
+          <span>Fixar data limite (não alterar pelo recálculo automático)</span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="task-alura-url">Link do Curso (Alura / Externo)</label>
+        <input
+          id="task-alura-url"
+          type="url"
+          formControlName="alura_url"
+          placeholder="https://cursos.alura.com.br/course/..."
+        />
+      </div>
+
+      <!-- Stacks Picker -->
+      <div class="form-group">
+        <label>Stacks & Tecnologias:</label>
+        <div class="stacks-picker">
+          @for (stack of stacks(); track stack.id) {
+            <button
+              type="button"
+              class="stack-picker-item"
+              [class.is-selected]="isStackSelected(stack.id)"
+              (click)="toggleStackSelection(stack.id)"
+            >
+              <span class="picker-dot" [style.backgroundColor]="stack.color"></span>
+              <span>{{ stack.name }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="modal-form-actions">
+        <button type="button" class="btn btn-outline" (click)="closeTaskModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="taskForm.invalid">
+          {{ editingTask() ? 'Salvar Alterações' : 'Criar Tarefa' }}
+        </button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Quick Study Session Modal -->
+  <app-modal
+    [isOpen]="isSessionModalOpen()"
+    [title]="'Registrar Horas de Estudo: ' + (activeTaskForSession()?.title || '')"
+    (close)="closeSessionModal()"
+  >
+    <form [formGroup]="sessionForm" (ngSubmit)="saveSession()" class="modal-form">
+      <div class="form-group">
+        <label for="session-date">Data do Estudo *</label>
+        <input
+          id="session-date"
+          type="date"
+          formControlName="date"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="session-hours">Horas Dedicadas *</label>
+        <input
+          id="session-hours"
+          type="number"
+          step="0.25"
+          min="0.25"
+          formControlName="hours"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="session-note">Anotações do Aprendizado (opcional)</label>
+        <textarea
+          id="session-note"
+          formControlName="note"
+          rows="3"
+          placeholder="O que você praticou, principais insights ou dificuldades superadas..."
+        ></textarea>
+      </div>
+
+      <div class="modal-form-actions">
+        <button type="button" class="btn btn-outline" (click)="closeSessionModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="sessionForm.invalid">Salvar Sessão</button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Delete Confirmation Modal -->
+  <app-modal
+    [isOpen]="isDeleteModalOpen()"
+    title="Confirmar Exclusão"
+    (close)="closeDeleteModal()"
+  >
+    <div class="delete-confirmation-content">
+      <p>
+        Tem certeza que deseja excluir a tarefa
+        <strong>"{{ taskToDelete()?.title }}"</strong>?
+      </p>
+      <p class="delete-warning">
+        Esta ação apagará permanentemente o registro da tarefa e todas as sessões de estudo vinculadas.
+      </p>
+
+      <div class="modal-form-actions">
+        <button type="button" class="btn btn-outline" (click)="closeDeleteModal()">Cancelar</button>
+        <button type="button" class="btn btn-danger" (click)="executeDelete()">Sim, Excluir</button>
+      </div>
+    </div>
+  </app-modal>
+</div>

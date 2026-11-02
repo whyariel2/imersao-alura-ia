@@ -1,0 +1,49 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.status-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Todo */
+.badge-todo {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+.badge-todo .status-dot {
+  background-color: var(--text-muted);
+}
+
+/* In Progress */
+.badge-progress {
+  background-color: var(--accent-subtle);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+}
+.badge-progress .status-dot {
+  background-color: var(--accent-primary);
+}
+
+/* Done */
+.badge-done {
+  background-color: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+.badge-done .status-dot {
+  background-color: var(--success);
+}

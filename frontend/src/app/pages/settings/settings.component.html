@@ -1,0 +1,131 @@
+<div class="settings-page">
+  <header class="settings-header">
+    <h1 class="page-title">Configurações do Plano</h1>
+    <p class="page-subtitle">Ajuste seus parâmetros de estudo, capacidade de horas e tema visual.</p>
+  </header>
+
+  <!-- Alerts -->
+  @if (successMessage()) {
+    <div class="alert alert-success" role="status">
+      <span>✓ {{ successMessage() }}</span>
+      <button type="button" class="btn-dismiss" (click)="successMessage.set(null)" aria-label="Fechar mensagem">✕</button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="btn-dismiss" (click)="errorMessage.set(null)" aria-label="Fechar erro">✕</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Carregando configurações...</p>
+    </div>
+  } @else {
+    <div class="settings-grid">
+      <!-- Settings Form Card -->
+      <section class="card settings-card">
+        <header class="card-header">
+          <h2 class="card-title">Parâmetros de Estudo</h2>
+          <span class="card-subtitle">Impactam diretamente no reajuste automático de datas</span>
+        </header>
+
+        <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" class="settings-form">
+          <!-- Weekly Capacity -->
+          <div class="form-group">
+            <label for="weekly-capacity" class="form-label">
+              Capacidade Semanal de Estudo (Horas / Semana) *
+            </label>
+            <div class="input-with-suffix">
+              <input
+                id="weekly-capacity"
+                type="number"
+                step="1"
+                min="1"
+                max="168"
+                formControlName="weekly_capacity_hours"
+                required
+              />
+              <span class="suffix">horas / semana</span>
+            </div>
+            <p class="form-help">
+              O algoritmo distribui as tarefas pendentes sequencialmente com base nessa capacidade.
+              Ex: 10h/semana projeta cerca de 1.43h por dia.
+            </p>
+            @if (settingsForm.controls.weekly_capacity_hours.touched && settingsForm.controls.weekly_capacity_hours.invalid) {
+              <span class="field-error">Informe um valor válido entre 1 e 168 horas semanais.</span>
+            }
+          </div>
+
+          <!-- Theme Preference -->
+          <div class="form-group">
+            <label for="theme-preference" class="form-label">Tema da Interface</label>
+            <select id="theme-preference" formControlName="theme">
+              <option value="dark">🌙 Modo Escuro (Dark)</option>
+              <option value="light">☀️ Modo Claro (Light)</option>
+            </select>
+            <p class="form-help">
+              Você também pode alternar o tema rapidamente a qualquer momento usando o botão no topo.
+            </p>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="settingsForm.invalid || isSaving()"
+            >
+              @if (isSaving()) {
+                Salvando e recalculando...
+              } @else {
+                Salvar Configurações
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Advanced / Re-schedule Trigger Card -->
+      <section class="card maintenance-card">
+        <header class="card-header">
+          <h2 class="card-title">Recálculo Manual de Prazos</h2>
+          <span class="card-subtitle">Manutenção da linha do tempo</span>
+        </header>
+
+        <div class="card-content">
+          <p class="info-text">
+            O reagendamento é disparado automaticamente ao concluir/reabrir tarefas, registrar sessões de estudo
+            ou alterar posições. Se você deseja forçar um recálculo global de todas as tarefas pendentes agora:
+          </p>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="triggerReschedule()"
+            [disabled]="isSaving()"
+          >
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Recalcular Todos os Prazos Agora</span>
+          </button>
+        </div>
+
+        <div class="database-info-box">
+          <h3 class="info-title">Status da Persistência Local</h3>
+          <ul class="info-list">
+            <li>Banco de dados: <strong>SQLite (Modo WAL)</strong></li>
+            <li>Integridade: <strong>Foreign Keys ON</strong></li>
+            <li>Horas estudadas: <strong>Fonte única de verdade (study_sessions)</strong></li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  }
+</div>

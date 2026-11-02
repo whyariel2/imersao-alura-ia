@@ -1,0 +1,274 @@
+<div class="timeline-page">
+  <!-- Page Header -->
+  <header class="timeline-header">
+    <div>
+      <h1 class="page-title">Cronograma & Linha do Tempo</h1>
+      <p class="page-subtitle">Visualização cronológica com projeções automáticas de conclusão e metas.</p>
+    </div>
+
+    <!-- View Mode Switcher -->
+    <div class="view-switcher" role="radiogroup" aria-label="Modo de agrupamento da timeline">
+      <button
+        type="button"
+        class="switcher-btn"
+        [class.is-active]="groupMode() === 'month'"
+        (click)="setGroupMode('month')"
+      >
+        📅 Por Mês
+      </button>
+      <button
+        type="button"
+        class="switcher-btn"
+        [class.is-active]="groupMode() === 'phase'"
+        (click)="setGroupMode('phase')"
+      >
+        📚 Por Fase
+      </button>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="btn-dismiss" (click)="errorMessage.set(null)" aria-label="Fechar erro">✕</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Projetando cronograma com o algoritmo de reagendamento...</p>
+    </div>
+  } @else {
+    <!-- Month View -->
+    @if (groupMode() === 'month') {
+      <div class="timeline-container">
+        @for (group of groupedByMonth(); track group.monthKey) {
+          <section class="timeline-period-block">
+            <header class="period-header">
+              <div class="period-dot"></div>
+              <div class="period-title-box">
+                <h2 class="period-title">{{ group.monthLabel }}</h2>
+                <span class="period-summary">{{ group.tasks.length }} tarefas &bull; {{ group.totalHours }}h de estudo</span>
+              </div>
+            </header>
+
+            <div class="timeline-events">
+              @for (task of group.tasks; track task.id) {
+                <div class="timeline-event" [class.is-done]="task.status === 'done'">
+                  <div class="event-connector">
+                    <div class="event-node" [class.node-done]="task.status === 'done'" [class.node-risk]="task.at_risk">
+                      @if (task.status === 'done') {
+                        ✓
+                      } @else if (task.at_risk) {
+                        !
+                      }
+                    </div>
+                    <div class="event-line"></div>
+                  </div>
+
+                  <article class="event-card">
+                    <div class="event-card-top">
+                      <div class="event-tags">
+                        <span class="event-phase-tag">{{ task.phase_name }}</span>
+                        <app-status-badge [status]="task.status"></app-status-badge>
+
+                        @if (task.at_risk) {
+                          <span class="badge-at-risk">⚠️ Risco</span>
+                        }
+                        @if (task.pinned_due_date) {
+                          <span class="badge-pinned">📌 Fixada</span>
+                        }
+                      </div>
+
+                      <div class="event-date">
+                        @if (task.due_date) {
+                          <span class="due-date-text" [class.text-danger]="task.at_risk">
+                            📅 {{ task.due_date }}
+                          </span>
+                        } @else {
+                          <span class="undated-text">Data a definir</span>
+                        }
+                      </div>
+                    </div>
+
+                    <h3 class="event-title">{{ task.title }}</h3>
+
+                    @if (task.description) {
+                      <p class="event-description">{{ task.description }}</p>
+                    }
+
+                    @if (task.stacks.length > 0) {
+                      <div class="event-stacks">
+                        @for (stack of task.stacks; track stack.id) {
+                          <app-stack-chip [name]="stack.name" [color]="stack.color"></app-stack-chip>
+                        }
+                      </div>
+                    }
+
+                    <footer class="event-footer">
+                      <span class="event-hours">
+                        Horas: <strong>{{ task.spent_hours }}h</strong> de {{ task.estimated_hours }}h
+                      </span>
+
+                      <div class="event-actions">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-success"
+                          (click)="quickToggleStatus(task)"
+                        >
+                          {{ task.status === 'done' ? '↺ Reabrir' : '✓ Concluir' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-secondary"
+                          (click)="openSessionModal(task)"
+                        >
+                          + Apontar Horas
+                        </button>
+                      </div>
+                    </footer>
+                  </article>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (groupedByMonth().length === 0) {
+          <div class="empty-timeline">
+            <p>Nenhuma tarefa agendada no cronograma.</p>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- Phase View -->
+      <div class="timeline-container">
+        @for (group of groupedByPhase(); track group.phase.id) {
+          <section class="timeline-period-block">
+            <header class="period-header">
+              <div class="period-dot"></div>
+              <div class="period-title-box">
+                <h2 class="period-title">Fase {{ group.phase.position }}: {{ group.phase.name }}</h2>
+                <span class="period-summary">{{ group.tasks.length }} tarefas &bull; {{ group.totalHours }}h estimadas</span>
+              </div>
+            </header>
+
+            <div class="timeline-events">
+              @for (task of group.tasks; track task.id) {
+                <div class="timeline-event" [class.is-done]="task.status === 'done'">
+                  <div class="event-connector">
+                    <div class="event-node" [class.node-done]="task.status === 'done'" [class.node-risk]="task.at_risk">
+                      @if (task.status === 'done') {
+                        ✓
+                      } @else if (task.at_risk) {
+                        !
+                      }
+                    </div>
+                    <div class="event-line"></div>
+                  </div>
+
+                  <article class="event-card">
+                    <div class="event-card-top">
+                      <div class="event-tags">
+                        <app-status-badge [status]="task.status"></app-status-badge>
+
+                        @if (task.at_risk) {
+                          <span class="badge-at-risk">⚠️ Risco</span>
+                        }
+                        @if (task.pinned_due_date) {
+                          <span class="badge-pinned">📌 Fixada</span>
+                        }
+                      </div>
+
+                      <div class="event-date">
+                        @if (task.due_date) {
+                          <span class="due-date-text" [class.text-danger]="task.at_risk">
+                            📅 {{ task.due_date }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+
+                    <h3 class="event-title">{{ task.title }}</h3>
+
+                    @if (task.description) {
+                      <p class="event-description">{{ task.description }}</p>
+                    }
+
+                    @if (task.stacks.length > 0) {
+                      <div class="event-stacks">
+                        @for (stack of task.stacks; track stack.id) {
+                          <app-stack-chip [name]="stack.name" [color]="stack.color"></app-stack-chip>
+                        }
+                      </div>
+                    }
+
+                    <footer class="event-footer">
+                      <span class="event-hours">
+                        Horas: <strong>{{ task.spent_hours }}h</strong> de {{ task.estimated_hours }}h
+                      </span>
+
+                      <div class="event-actions">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-success"
+                          (click)="quickToggleStatus(task)"
+                        >
+                          {{ task.status === 'done' ? '↺ Reabrir' : '✓ Concluir' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-secondary"
+                          (click)="openSessionModal(task)"
+                        >
+                          + Apontar Horas
+                        </button>
+                      </div>
+                    </footer>
+                  </article>
+                </div>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+  }
+
+  <!-- Quick Study Session Modal -->
+  <app-modal
+    [isOpen]="isSessionModalOpen()"
+    [title]="'Registrar Horas de Estudo: ' + (activeTaskForSession()?.title || '')"
+    (close)="closeSessionModal()"
+  >
+    <form [formGroup]="sessionForm" (ngSubmit)="saveSession()" class="modal-form">
+      <div class="form-group">
+        <label for="timeline-session-date">Data do Estudo *</label>
+        <input id="timeline-session-date" type="date" formControlName="date" required />
+      </div>
+
+      <div class="form-group">
+        <label for="timeline-session-hours">Horas Dedicadas *</label>
+        <input id="timeline-session-hours" type="number" step="0.25" min="0.25" formControlName="hours" required />
+      </div>
+
+      <div class="form-group">
+        <label for="timeline-session-note">Anotações do Aprendizado (opcional)</label>
+        <textarea
+          id="timeline-session-note"
+          formControlName="note"
+          rows="3"
+          placeholder="O que você estudou nesta sessão..."
+        ></textarea>
+      </div>
+
+      <div class="modal-form-actions">
+        <button type="button" class="btn btn-outline" (click)="closeSessionModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="sessionForm.invalid">Salvar Sessão</button>
+      </div>
+    </form>
+  </app-modal>
+</div>

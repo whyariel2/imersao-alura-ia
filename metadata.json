@@ -1,0 +1,6 @@
+{
+  "name": "DevPath - Plano de Estudos Full Stack",
+  "description": "Plano de estudos pessoal para formação Full Stack com pós FIAP e Alura, reajuste automático de prazos e métricas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
